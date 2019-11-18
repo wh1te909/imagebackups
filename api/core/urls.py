@@ -1,0 +1,32 @@
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path("createbackup/", views.create_backup),
+    path("getdisk/", views.get_disk),
+    path("getbackups/", views.get_backups),
+    path("mountbackup/<pk>/", views.mount_backup),
+    path("unmountbackup/<pk>/", views.unmount_backup),
+    path("viewprogress/<pk>/", views.view_progress),
+    path("mountbyoffset/<pk>/<offset>/", views.mount_by_offset),
+    path("getbgtask/", views.get_bg_task),
+    path("wipedisk/", views.wipe_disk),
+    path("cancelwipe/<celeryid>/", views.cancel_wipe),
+    path("deletebackup/", views.delete_backup),
+    path("cancelbackup/<pk>/", views.cancel_backup),
+    path("serverinfo/", views.server_info),
+    path("shutdownserver/", views.shutdown_server),
+    path("getwipes/", views.get_wipes),
+    path("wipeprogress/", views.wipe_progress),
+    path("getlatestwipe/", views.get_latest_wipe),
+    path("rename/", views.rename_backup),
+    path("getdiskchecks/", views.get_disk_checks),
+    path("startdiskcheck/", views.start_disk_check),
+    path("canceldiskcheck/<celeryid>/", views.cancel_diskcheck),
+    path("viewdiskcheckprogress/<pk>/", views.view_diskcheck_progress),
+    path("virusscan/<pk>/<action>/", views.virus_scan),
+    path("getvirusscans/", views.get_virus_scans),
+    path("viewvirusscanprogress/<pk>/", views.view_virus_scan_progress),
+    path("deletevirusscan/<pk>/", views.delete_virus_scan),
+    path("cancelvirusscan/<pk>/", views.cancel_virus_scan),
+]
