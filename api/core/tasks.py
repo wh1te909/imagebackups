@@ -9,7 +9,7 @@ from .models import BackupJob, BackgroundTask, DiskWipe, DiskCheck, VirusScan
 @app.task(bind=True)
 def virus_scan_task(self, name, mounts, action):
 
-    subprocess.run(["mkdir", "/viruses/{name}"])
+    subprocess.run(["mkdir", f"/viruses/{name}"])
 
     if action == "move":
         cmd = ["clamscan", "-r", "-i", "-l", f"/clamlogs/{name}.log", f"--move=/viruses/{name}", f"/virusmount/{name}"]
