@@ -642,6 +642,11 @@ export default {
   created() {
     this.$q.dark.set(true);
     this.getBackups();
+  },
+  mounted() {
+    if (localStorage.getItem("reloaded")) {
+      localStorage.removeItem("reloaded");
+    };
   }
 };
 </script>
