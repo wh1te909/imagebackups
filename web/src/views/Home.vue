@@ -156,6 +156,16 @@
                   @click="renameBackup(props.row.id, props.row.name)"
                 />
 
+                <!-- view finished backup log -->
+                <q-btn
+                  v-if="props.row.status === 'SUCCESS'"
+                  size="sm"
+                  color="secondary"
+                  icon="remove_red_eye"
+                  label="Results"
+                  @click="viewProgress(props.row.id)"
+                />
+ 
                 <!-- virus scan -->
                 <q-btn v-if="props.row.mounted" disable size="sm" color="accent" label="Scan" icon="cloud_circle" />
                 <q-btn v-else-if="props.row.virus_scan_running" disable size="sm" color="accent" label="Scan" icon="cloud_circle">
