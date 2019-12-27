@@ -4,7 +4,7 @@ from celery.result import AsyncResult
 
 from api.celery import app
 
-from .models import BackupJob, BackgroundTask, DiskWipe, DiskCheck, VirusScan
+from .models import BackupJob, BackgroundTask, DiskWipe, DiskCheck, VirusScan, DiskClone
 
 @app.task(bind=True)
 def virus_scan_task(self, name, mounts, action):
@@ -132,13 +132,6 @@ def wipe_disk_task(self):
         f"/root/imagebackups/log/ddlogs/{self.request.id}-dd-wipe.log"
     ], stdout=subprocess.PIPE)
 
-    """ r = subprocess.Popen([
-        "ping", 
-        "-c", 
-        "20", 
-        "google.com"
-    ], stdout=subprocess.PIPE) """
-
     log = f"/root/imagebackups/log/subprocess-logs/{self.request.id}-wipe.log"
 
     while True:
@@ -152,6 +145,34 @@ def wipe_disk_task(self):
 
     return f"{self.request.id} wipe finished with return code {rc}"
 
+@app.task(bind=True)
+def clone_disk_task(self, pk):
+    backup = BackupJob.objects.get(pk=pk)
+
+    # clean the disk first
+    subprocess.run(["wipefs", "-a", "/dev/cruH"])
+
+    r = subprocess.Popen([
+        "ddrescue", 
+        "-f", 
+        f"/tank/backups/{backup.name}.img", 
+        "/dev/cruH",
+        f"/root/imagebackups/log/clonelogs/{self.request.id}-dd-clone.log"
+    ], stdout=subprocess.PIPE)
+
+    log = f"/root/imagebackups/log/subprocess-logs/{self.request.id}-clone.log"
+
+    while True:
+        output = r.stdout.readline()
+        if r.poll() is not None and output == b'':
+            break
+        if output:
+            with open(log, 'a+') as f:
+                f.write(output.decode())
+    rc = r.poll()
+
+    return f"{self.request.id} clone finished with return code {rc}"
+
 
 @app.task()
 def check_wipe_task():
@@ -163,6 +184,17 @@ def check_wipe_task():
             i.save(update_fields=["status"])
     
     return "updated wipe states"
+
+@app.task()
+def check_clone_task():
+    clones = DiskClone.objects.all()
+    for i in clones:
+        if i.status != "SUCCESS":
+            res = AsyncResult(i.celery_id)
+            i.status = res.state
+            i.save(update_fields=["status"])
+    
+    return "updated clone states"
 
 @app.task()
 def check_virus_task():

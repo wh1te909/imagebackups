@@ -20,9 +20,10 @@ def debug_task(self):
 
 @app.on_after_finalize.connect
 def setup_periodic_tasks(sender, **kwargs):
-    from core.tasks import get_backup_size, check_wipe_task, check_backup_task, check_diskcheck_task, check_virus_task
+    from core.tasks import get_backup_size, check_wipe_task, check_backup_task, check_diskcheck_task, check_virus_task, check_clone_task
     sender.add_periodic_task(45.0, get_backup_size.s(), name='get size')
-    sender.add_periodic_task(15.0, check_wipe_task.s(), name='update wipe states')
-    sender.add_periodic_task(20.0, check_backup_task.s(), name='update backup states')
-    sender.add_periodic_task(25.0, check_diskcheck_task.s(), name='update diskcheck states')
-    sender.add_periodic_task(30.0, check_virus_task.s(), name='update virus scan states')
+    sender.add_periodic_task(10.0, check_wipe_task.s(), name='update wipe states')
+    sender.add_periodic_task(10.0, check_backup_task.s(), name='update backup states')
+    sender.add_periodic_task(10.0, check_diskcheck_task.s(), name='update diskcheck states')
+    sender.add_periodic_task(20.0, check_virus_task.s(), name='update virus scan states')
+    sender.add_periodic_task(10.0, check_clone_task.s(), name='update clone states')

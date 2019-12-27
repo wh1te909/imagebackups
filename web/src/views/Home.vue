@@ -26,7 +26,7 @@
       <div class="q-pa-md">
         <div class="q-gutter-md">
           <q-btn
-            v-if="backupsRunning || wipesRunning || diskcheckRunning"
+            v-if="backupsRunning || wipesRunning || diskcheckRunning || diskCloneRunning"
             color="primary"
             disable
             label="Create Backup"
@@ -41,7 +41,7 @@
             @click="showCreateBackup = true"
           />
           
-        
+          <!-- wipes running -->
           <q-btn 
             v-if="wipesRunning" 
             label="Wipe Disk" 
@@ -49,11 +49,18 @@
             color="negative" 
             icon="warning" 
           ><q-linear-progress indeterminate /></q-btn>
-          <q-btn v-else-if="backupsRunning || diskcheckRunning" label="Wipe Disk" disable color="negative" icon="warning" />
+          <q-btn v-else-if="backupsRunning || diskcheckRunning || diskCloneRunning" label="Wipe Disk" disable color="negative" icon="warning" />
           <q-btn v-else color="negative" label="Wipe Disk" icon="warning" @click="wipeDisk" />
 
           <q-btn v-if="wipesRunning" label="Cancel Wipe" color="accent" icon="stop" @click="cancelWipe(latestWipe)" />
           <q-btn v-if="wipesRunning" label="Wipe Status" color="secondary" icon="remove_red_eye" @click="viewWipeProgress" />
+
+          <!-- clone running -->
+
+          <q-btn v-if="diskCloneRunning" label="Cancel Clone" color="accent" icon="stop" @click="cancelClone(latestClone)" />
+          <q-btn v-if="diskCloneRunning" label="Clone Status" color="secondary" icon="remove_red_eye" @click="viewCloneProgress">
+            <q-linear-progress indeterminate />
+          </q-btn>
 
           <!-- Disk Check button -->
           <q-btn
@@ -130,7 +137,7 @@
                   @click="unMountBackup(props.row.id)"
                 />
                 <q-btn
-                  v-else-if="props.row.virus_scan_running"
+                  v-else-if="props.row.virus_scan_running || diskCloneRunning"
                   size="sm"
                   color="primary"
                   icon="add"
@@ -165,13 +172,31 @@
                   label="Results"
                   @click="viewProgress(props.row.id)"
                 />
+
+                <!-- clone image to new disk -->
+                <q-btn 
+                  v-if="backupsRunning || wipesRunning || diskcheckRunning || diskCloneRunning"
+                  size="sm"
+                  color="primary"
+                  icon="fas fa-clone"
+                  label="Clone"
+                  disable 
+                />
+                <q-btn
+                  v-else-if="props.row.status === 'SUCCESS'"
+                  size="sm"
+                  color="primary"
+                  icon="fas fa-clone"
+                  label="Clone"
+                  @click="clone(props.row.id, props.row.name)"
+                />
  
                 <!-- virus scan -->
                 <q-btn v-if="props.row.mounted" disable size="sm" color="accent" label="Scan" icon="cloud_circle" />
                 <q-btn v-else-if="props.row.virus_scan_running" disable size="sm" color="accent" label="Scan" icon="cloud_circle">
                   <q-linear-progress indeterminate />
                 </q-btn>
-                <q-btn v-else-if="virusScanRunning" disable size="sm" color="accent" label="Scan" icon="cloud_circle" />
+                <q-btn v-else-if="virusScanRunning || diskCloneRunning" disable size="sm" color="accent" label="Scan" icon="cloud_circle" />
                 <q-btn 
                   v-else
                   size="sm"
@@ -225,7 +250,7 @@
     <q-dialog v-model="showMountMultiple">
       <MountMultiple :pk="pkForMount" @close="showMountMultiple = false" @refresh="getBackups" />
     </q-dialog>
-    <DiskCheck :backupsrunning="backupsRunning" :wipesrunning="wipesRunning" @refresh="getBackups"/>
+    <DiskCheck :backupsrunning="backupsRunning" :wipesrunning="wipesRunning" :clonerunning="diskCloneRunning" @refresh="getBackups"/>
     <VirusScans @refresh="getBackups" />
   </q-layout>
 </template>
@@ -255,6 +280,7 @@ export default {
       pkForMount: null,
       backups: [],
       latestWipe: null,
+      latestClone: null,
       wipes: [],
       pagination: {
         rowsPerPage: 20,
@@ -327,6 +353,37 @@ export default {
     };
   },
   methods: {
+    clone(pk, name) {
+      this.$q.loading.show();
+      axios.get("/core/getdisk/").then(r => {
+        this.$q.loading.hide();
+        this.$q.dialog({
+          title: `Clone ${name} to Disk`,
+          message: `<pre>${r.data}<hr /><span style="color:red">Please make sure this is the correct disk!</span></pre>`,
+          cancel: true,
+          persistent: true,
+          style: "width: 800px; max-width: 90vw",
+          cancel: { label: "Cancel", color: "negative" },
+          ok: { label: "Start Clone", color: "positive" },
+          html: true
+        }).onOk(() => {
+          this.$q.loading.show();
+          axios.get(`/core/clonedisk/${pk}/`).then(r => {
+            this.getBackups();
+            this.$q.loading.hide();
+            this.notifySuccess("Clone started!");
+          })
+          .catch(() => {
+            this.$q.loading.hide();
+            this.notifySuccess("Something went wrong");
+          })
+        })
+      })
+      .catch(() => {
+        this.$q.loading.hide();
+        this.notifyError("Something went wrong");
+      })
+    },
     showDiskCheckModal() {
       this.$store.commit("TOGGLE_DISKCHECK_MODAL", true)
     },
@@ -455,6 +512,29 @@ export default {
             });
         });
     },
+    cancelClone(celeryID) {
+      this.$q
+        .dialog({
+          title: "Cancel Clone",
+          message: "Cancel the disk clone?",
+          cancel: { label: "no", color: "negative" },
+          ok: { label: "yes", color: "positive" }
+        })
+        .onOk(() => {
+          this.$q.loading.show();
+          axios
+            .get(`/core/cancelclone/${celeryID}/`)
+            .then(r => {
+              this.$q.loading.hide();
+              this.notifySuccess("The clone will be cancelled shortly. Please refresh soon");
+              this.getBackups();
+            })
+            .catch(e => {
+              this.$q.loading.hide();
+              this.notifyError(e.response.data.error);
+            });
+        });
+    },
     getWipes() {
       axios.get("/core/getwipes/").then(r => {
         this.wipes = r.data;
@@ -466,9 +546,11 @@ export default {
       });
       this.getWipes();
       this.getLatestWipe();
+      this.getLatestClone();
       this.$store.dispatch("serverInfo");
       this.$store.dispatch("getDiskChecks");
       this.$store.dispatch("getVirusScans");
+      this.$store.dispatch("getDiskClones");
     },
     virusScan(pk) {
       this.$q.dialog({
@@ -553,11 +635,35 @@ export default {
     getLatestWipe() {
       axios.get("/core/getlatestwipe/").then(r => this.latestWipe = r.data);
     },
+    getLatestClone() {
+      axios.get("/core/getlatestclone/").then(r => this.latestClone = r.data);
+    },
     viewWipeProgress() {
       this.$q.loading.show();
       axios.get('/core/wipeprogress/').then(r => {
         this.$q.loading.hide();
         if (r.data === 'wipefinished') {
+          this.notifyError("Wipe already finished! Please refresh.");
+          this.getBackups();
+          return;
+        }
+        
+        this.$q.dialog({
+          message: `<pre>${r.data}</pre>`,
+          style: "width: 800px; max-width: 90vw",
+          html: true
+        });
+      })
+      .catch(e => {
+        this.$q.loading.hide();
+        this.notifyError("Something went wrong. Please try again")
+      })
+    },
+    viewCloneProgress() {
+      this.$q.loading.show();
+      axios.get('/core/cloneprogress/').then(r => {
+        this.$q.loading.hide();
+        if (r.data === 'clonefinished') {
           this.notifyError("Wipe already finished! Please refresh.");
           this.getBackups();
           return;
@@ -614,7 +720,8 @@ export default {
       user: state => state.username,
       serverinfo: state => state.serverInfo,
       diskChecks: state => state.diskChecks,
-      virusScans: state => state.virusScans
+      virusScans: state => state.virusScans,
+      diskClones: state => state.diskClones
     }),
     backupsRunning() {
       const running = this.backups.find(k => k.status === 'STARTED');
@@ -642,6 +749,14 @@ export default {
     },
     virusScanRunning() {
       const running = this.virusScans.find(k => k.status === 'STARTED');
+      if (running) {
+        return true;
+      } else {
+        return false
+      }
+    },
+    diskCloneRunning() {
+      const running = this.diskClones.find(k => k.status === 'STARTED');
       if (running) {
         return true;
       } else {

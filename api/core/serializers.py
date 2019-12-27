@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import BackupJob, DiskWipe, DiskCheck, VirusScan
+from .models import BackupJob, DiskWipe, DiskCheck, VirusScan, DiskClone
 
 class BackupJobSerializer(serializers.ModelSerializer):
 
@@ -10,6 +10,12 @@ class BackupJobSerializer(serializers.ModelSerializer):
 
 
 class DiskWipeSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = DiskWipe
+        fields = "__all__"
+
+class DiskCloneSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = DiskWipe

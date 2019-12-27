@@ -17,7 +17,7 @@
           </q-btn>
         </q-bar>
         <div class="q-pa-md row">
-          <q-btn v-if="backupsrunning || wipesrunning || diskcheckRunning" label="Start Disk Check" disable color="primary" icon="add" />
+          <q-btn v-if="backupsrunning || wipesrunning || diskcheckRunning || clonerunning" label="Start Disk Check" disable color="primary" icon="add" />
           <q-btn v-else color="primary" icon="add" @click="startDiskCheck" label="Start Disk Check" />
         </div>
         <q-separator />
@@ -88,7 +88,7 @@ import mixins from "@/mixins/mixins";
 export default {
   name: "DiskCheck",
   mixins: [mixins],
-  props: ["backupsrunning", "wipesrunning"],
+  props: ["backupsrunning", "wipesrunning", "clonerunning"],
   data() {
     return {
         status: null,

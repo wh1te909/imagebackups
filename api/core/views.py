@@ -19,9 +19,9 @@ from rest_framework import status
 
 from api.celery import app
 
-from .models import BackupJob, BackgroundTask, DiskWipe, DiskCheck, VirusScan
-from .serializers import BackupJobSerializer, DiskWipeSerializer, DiskCheckSerializer, VirusScanSerializer
-from .tasks import delete_backup_task, shutdown_server_task, wipe_disk_task, backup_job_task, disk_check_task, virus_scan_task
+from .models import BackupJob, BackgroundTask, DiskWipe, DiskCheck, VirusScan, DiskClone
+from .serializers import BackupJobSerializer, DiskWipeSerializer, DiskCheckSerializer, VirusScanSerializer, DiskCloneSerializer
+from .tasks import delete_backup_task, shutdown_server_task, wipe_disk_task, backup_job_task, disk_check_task, virus_scan_task, clone_disk_task
 
 logger.configure(**settings.LOG_CONFIG)
 
@@ -157,6 +157,12 @@ def cancel_wipe(request, celeryid):
     sleep(1)
     return Response("ok")
 
+@api_view()
+def cancel_clone(request, celeryid):
+    app.control.revoke(celeryid, terminate=True, signal='SIGKILL')
+    sleep(1)
+    return Response("ok")
+
 
 @api_view()
 def cancel_diskcheck(request, celeryid):
@@ -192,9 +198,41 @@ def wipe_disk(request):
     return Response("ok")
 
 @api_view()
+def clone_disk(request, pk):
+
+    if "STARTED" in BackupJob.objects.values_list('status', flat=True):
+        return Response(
+            {"error": "Cannot clone. A backup is in progress"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    if "STARTED" in DiskCheck.objects.values_list('status', flat=True):
+        return Response(
+            {"error": "Cannot clone. A diskcheck is in progress"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    if "STARTED" in DiskWipe.objects.values_list('status', flat=True):
+        return Response(
+            {"error": "Cannot clone. A wipe is in progress"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    clone = clone_disk_task.delay(pk)
+    sleep(1)
+    res = AsyncResult(clone.task_id)
+    DiskClone(status=res.state, celery_id=clone.task_id).save()
+    return Response("ok")
+
+@api_view()
 def get_wipes(request):
     wipes = DiskWipe.objects.all()
     return Response(DiskWipeSerializer(wipes, many=True).data)
+
+@api_view()
+def get_clones(request):
+    clones = DiskClone.objects.all()
+    return Response(DiskCloneSerializer(clones, many=True).data)
 
 
 @api_view()
@@ -244,9 +282,21 @@ def view_virus_scan_progress(request, pk):
 
 @api_view()
 def get_latest_wipe(request):
+    try:
+        wipe = DiskWipe.objects.latest("started")
+    except Exception:
+        return Response("none")
 
-    wipe = DiskWipe.objects.latest("started")
     return Response(wipe.celery_id)
+
+@api_view()
+def get_latest_clone(request):
+    try:
+        clone = DiskClone.objects.latest("started")
+    except Exception:
+        return Response("none")
+
+    return Response(clone.celery_id)
 
 
 @api_view()
@@ -260,6 +310,24 @@ def wipe_progress(request):
         return Response("wipefinished")
 
     filename = f"/root/imagebackups/log/subprocess-logs/{wipe.celery_id}-wipe.log"
+
+    r = subprocess.run(["tail", "-6", filename], capture_output=True)
+    out = r.stdout.decode()
+
+    return Response(out)
+
+
+@api_view()
+def clone_progress(request):
+
+    clone = DiskClone.objects.latest("started")
+
+    res = AsyncResult(clone.celery_id)
+
+    if res.state == "SUCCESS":
+        return Response("clonefinished")
+
+    filename = f"/root/imagebackups/log/subprocess-logs/{clone.celery_id}-clone.log"
 
     r = subprocess.run(["tail", "-6", filename], capture_output=True)
     out = r.stdout.decode()

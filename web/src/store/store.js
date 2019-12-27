@@ -15,7 +15,8 @@ export const store = new Vuex.Store({
     toggleDiskCheckModal: false,
     toggleVirusScanModal: false,
     diskChecks: [],
-    virusScans: []
+    virusScans: [],
+    diskClones: []
   },
   getters: {
     loggedIn(state) {
@@ -23,6 +24,9 @@ export const store = new Vuex.Store({
     }
   },
   mutations: {
+    SET_DISK_CLONES(state, info) {
+      state.diskClones = info;
+    },
     SET_VIRUS_SCANS(state, info) {
       state.virusScans = info;
     },
@@ -54,6 +58,9 @@ export const store = new Vuex.Store({
     }
   },
   actions: {
+    getDiskClones(context) {
+      axios.get("/core/getclones/").then(r => context.commit("SET_DISK_CLONES", r.data))
+    },
     getVirusScans(context) {
       axios.get("/core/getvirusscans/").then(r => context.commit("SET_VIRUS_SCANS", r.data))
     },

@@ -39,6 +39,14 @@ class DiskWipe(models.Model):
     def __str__(self):
         return self.celery_id
 
+class DiskClone(models.Model):
+    status = models.CharField(default="n/a", max_length=255)
+    celery_id = models.CharField(default="n/a", max_length=255)
+    started = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.celery_id
+
 class DiskCheck(models.Model):
     status = models.CharField(default="n/a", max_length=255)
     celery_id = models.CharField(default="n/a", max_length=255)
