@@ -22,6 +22,7 @@ from api.celery import app
 from .models import BackupJob, BackgroundTask, DiskWipe, DiskCheck, VirusScan, DiskClone
 from .serializers import BackupJobSerializer, DiskWipeSerializer, DiskCheckSerializer, VirusScanSerializer, DiskCloneSerializer
 from .tasks import delete_backup_task, shutdown_server_task, wipe_disk_task, backup_job_task, disk_check_task, virus_scan_task, clone_disk_task
+from .functions import get_hdd_info
 
 logger.configure(**settings.LOG_CONFIG)
 
@@ -540,21 +541,7 @@ def create_backup(request):
             status=status.HTTP_400_BAD_REQUEST
         )
 
-    r = subprocess.run(["fdisk", "-l", "/dev/cruH"], capture_output=True)
-    output = r.stdout.decode().splitlines()
-
-    model_index = [i for i, s in enumerate(output) if 'Disk model:' in s]
-    serial_index = [i for i, s in enumerate(output) if 'Disk identifier:' in s]
-
-    try:
-        model = output[model_index[0]].split("Disk model:", 1)[1].strip()
-    except Exception:
-        model = "unavailable"
-    
-    try:
-        serial = output[serial_index[0]].split("Disk identifier:", 1)[1].strip()
-    except Exception:
-        serial = "unavailable"
+    info = get_hdd_info("/dev/cruH")
 
     backup = backup_job_task.delay(name)
     sleep(1)
@@ -563,8 +550,8 @@ def create_backup(request):
     BackupJob(
         name=name, 
         status=res.state, 
-        model=model, 
-        serial=serial,
+        model=info["model"], 
+        serial=info["serial"],
         celery_id=backup.task_id
     ).save()
 
@@ -585,21 +572,7 @@ def start_disk_check(request):
             status=status.HTTP_400_BAD_REQUEST
         )
 
-    r = subprocess.run(["fdisk", "-l", "/dev/cruH"], capture_output=True)
-    output = r.stdout.decode().splitlines()
-
-    model_index = [i for i, s in enumerate(output) if 'Disk model:' in s]
-    serial_index = [i for i, s in enumerate(output) if 'Disk identifier:' in s]
-
-    try:
-        model = output[model_index[0]].split("Disk model:", 1)[1].strip()
-    except Exception:
-        model = "unavailable"
-    
-    try:
-        serial = output[serial_index[0]].split("Disk identifier:", 1)[1].strip()
-    except Exception:
-        serial = "unavailable"
+    info = get_hdd_info("/dev/cruH")
 
     diskcheck = disk_check_task.delay()
     sleep(1)
@@ -607,8 +580,8 @@ def start_disk_check(request):
 
     DiskCheck(
         status=res.state, 
-        model=model, 
-        serial=serial,
+        model=info["model"], 
+        serial=info["serial"],
         celery_id=diskcheck.task_id
     ).save()
 
@@ -619,6 +592,7 @@ def start_disk_check(request):
 def get_disk(request):
     try:
         r = subprocess.run(["fdisk", "-l", "/dev/cruH"], capture_output=True)
+        #r = subprocess.run("hdparm -I /dev/sda | sed -r '/^\s*$/d'", shell=True, capture_output=True)
         output = r.stdout.decode()
     except Exception as e:
         logger.warning(e)
