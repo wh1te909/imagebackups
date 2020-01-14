@@ -5,6 +5,7 @@ import psutil
 import math
 from loguru import logger
 from celery.result import AsyncResult
+import string
 
 from django.conf import settings
 
@@ -255,20 +256,23 @@ def view_progress(request, pk):
     backup = BackupJob.objects.get(pk=pk)
     filename = f"/root/imagebackups/log/subprocess-logs/{backup.name}-subprocess.log"
 
-    r = subprocess.run(["tail", "-6", filename], capture_output=True)
-    out = r.stdout.decode()
-
-    return Response(out)
+    if backup.status == "SUCCESS":
+        r = subprocess.run(["tail", "-7", filename], capture_output=True)
+    else:
+        r = subprocess.run(["tail", "-6", filename], capture_output=True)
+    
+    return Response(r.stdout.decode())
 
 @api_view()
 def view_diskcheck_progress(request, pk):
-
     check = DiskCheck.objects.get(pk=pk)
     filename = f"/root/imagebackups/log/subprocess-logs/{check.celery_id}-bb.log"
-    r = subprocess.run(["cat", filename], capture_output=True)
-    out = r.stdout.decode()
+    r = subprocess.run(["less", "-F", filename], capture_output=True)
 
-    return Response(out)
+    printable = set(string.printable)
+    out = "".join(filter(lambda x: x in printable, r.stdout.decode()))
+
+    return Response(out.replace("test):", "test):\n").replace("errors)", "errors)\n"))
 
 @api_view()
 def view_virus_scan_progress(request, pk):
@@ -278,6 +282,7 @@ def view_virus_scan_progress(request, pk):
 
     with open(filename, "r") as f:
         out = f.read()
+
 
     return Response(out)
 

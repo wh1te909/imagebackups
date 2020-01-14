@@ -7,7 +7,7 @@
       transition-show="slide-up"
       transition-hide="slide-down"
     >
-      <q-card class="bg-grey-10 text-white" style="width: 800px; max-width: 90vw">
+      <q-card class="bg-grey-10 text-white" style="width: 1000px; max-width: 90vw">
         <q-bar>
             <q-btn @click="getDiskChecks" class="q-mr-sm" dense flat push icon="refresh" label="Refresh" />
           Disk Checks
@@ -137,7 +137,7 @@ export default {
         this.$q.loading.hide();
         this.$q.dialog({
           message: `<pre>${r.data}</pre>`,
-          style: "width: 800px; max-width: 90vw",
+          style: "width: 800px; max-width: 90vw; height: 600px; max-height: 50vw;",
           html: true
         });
       })

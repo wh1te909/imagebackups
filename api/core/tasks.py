@@ -42,28 +42,10 @@ def virus_scan_task(self, name, mounts, action):
 
 @app.task(bind=True)
 def disk_check_task(self):
-
-    r = subprocess.Popen([
-        "badblocks",
-        "-v",
-        "-s",
-        "-o",
-        f"/root/imagebackups/log/badblocks/{self.request.id}-bb.log",
-        "/dev/cruH"
-    ], stderr=subprocess.PIPE)
-
     log = f"/root/imagebackups/log/subprocess-logs/{self.request.id}-bb.log"
+    r = subprocess.run(f"badblocks -v -s /dev/cruH > {log} 2>&1", shell=True, capture_output=True)
 
-    while True:
-        output = r.stderr.readline()
-        if r.poll() is not None and output == b'':
-            break
-        if output:
-            with open(log, 'a+') as f:
-                f.write(output.decode())
-    rc = r.poll()
-
-    return f"{self.request.id} disk check job finished with return code {rc}"
+    return f"{self.request.id} disk check job finished with return code {r.returncode}"
 
 
 @app.task(bind=True)

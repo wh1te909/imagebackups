@@ -7,7 +7,7 @@
       transition-show="slide-up"
       transition-hide="slide-down"
     >
-      <q-card class="bg-grey-10 text-white" style="width: 800px; max-width: 90vw">
+      <q-card class="bg-grey-10 text-white" style="width: 1000px; max-width: 90vw">
         <q-bar>
             <q-btn @click="getVirusScans" class="q-mr-sm" dense flat push icon="refresh" label="Refresh" />
           Virus Scans
