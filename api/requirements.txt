@@ -7,7 +7,7 @@ cryptography==3.0
 Django==3.0.8
 django-cors-headers==3.4.0
 django-rest-knox==4.1.0
-djangorestframework==3.11.0
+djangorestframework==3.11.2
 importlib-metadata==1.7.0
 kombu==4.6.11
 loguru==0.5.1
